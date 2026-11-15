@@ -6,8 +6,24 @@
 #include "GameFramework/GameModeBase.h"
 #include "JetpackGameMode.generated.h"
 
+class ALaser;
 class AJetpackPlayer;
 class ALevelChunk;
+
+struct FLaserSpawnSettings {
+	float Length = 0.f;
+	float AngleDeg = 0.f;
+	float ZPosition = 0.f;
+};
+
+namespace LaserPresets {
+	FLaserSpawnSettings Generate();
+	
+	inline constexpr float Lengths[] = {15.f, 25.f, 30.f};
+	inline constexpr float Angles[] = {-45.f, 0.f, 45.f, 90.f};
+	constexpr float BoundaryValue = 48.f;
+}
+
 /**
  * 
  */
@@ -21,7 +37,9 @@ public:
 	
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
+	
 	void SpawnNextChunk();
+	void SpawnLaser();
 	
 	float GetVisibleWidth() const { return VisibleWidth; }
 	float GetVisibleHeight() const { return VisibleHeight; }
@@ -48,4 +66,18 @@ protected:
 	TArray<TSubclassOf<ALevelChunk>> LevelChunkPool;
 	UPROPERTY()
 	TArray<TObjectPtr<ALevelChunk>> ActiveChunks;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Lasers")
+	TSubclassOf<ALaser> LaserClass;
+	UPROPERTY(EditDefaultsOnly, Category = "Lasers", meta = (ClampMin = 0.f, ClampMax = 100.f))
+	float GenerationRange = 40.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Lasers", meta = (ClampMin = 0.f, ClampMax = 1.f))
+	float LaserSpawnFrequency = 0.5f;
+	UPROPERTY()
+	TArray<TObjectPtr<ALaser>> ActiveLasers;
+	float NextLaserStartX = 0;
+	float LastLaserEndX = 0;
+	const float MinGap = 20.f;
+	const float MaxGap = 50.f;
+	int MaxLasers = 10;
 };
