@@ -69,15 +69,16 @@ protected:
 	
 	UPROPERTY(EditDefaultsOnly, Category = "Lasers")
 	TSubclassOf<ALaser> LaserClass;
+	UPROPERTY(EditDefaultsOnly, Category = "Lasers")
+	float ObstacleGenerationDistance = 400.f;
 	UPROPERTY(EditDefaultsOnly, Category = "Lasers", meta = (ClampMin = 0.f, ClampMax = 100.f))
-	float GenerationRange = 40.f;
-	UPROPERTY(EditDefaultsOnly, Category = "Lasers", meta = (ClampMin = 0.f, ClampMax = 1.f))
-	float LaserSpawnFrequency = 0.5f;
+	int LaserSpawnProbability = 30; // percentage; TODO Increases as the player goes further until a limit
 	UPROPERTY()
 	TArray<TObjectPtr<ALaser>> ActiveLasers;
 	float NextLaserStartX = 0;
 	float LastLaserEndX = 0;
 	const float MinGap = 20.f;
 	const float MaxGap = 50.f;
-	int MaxLasers = 10;
+	int MaxConsecutiveSlices = 3;
+	int ConsecutiveSlicesCounter = 0;
 };

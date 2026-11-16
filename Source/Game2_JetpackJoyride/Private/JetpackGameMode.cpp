@@ -22,7 +22,13 @@ FLaserSpawnSettings LaserPresets::Generate() {
 	float MinZ = (-1.f * BoundaryValue) + HalfHeight;
 	if (MinZ > MaxZ) return FLaserSpawnSettings(); // Won't fit so spawns at origin, 0 length
 	
-	Settings.ZPosition = FMath::FRandRange(MinZ, MaxZ);
+	float ZValue = FMath::RandRange(MinZ, MaxZ);
+	
+	ZValue *= 10.f;
+	if (FMath::Fmod(ZValue, 5.f) >= 2.5f) ZValue += 5 - FMath::Fmod(ZValue, 5.f);
+	else ZValue -= FMath::Fmod(ZValue, 5.f);
+	
+	Settings.ZPosition = ZValue * 0.1f; // Rounded value to nearest 0.5 unit 
 	
 	return Settings;
 }
@@ -50,28 +56,25 @@ void AJetpackGameMode::BeginPlay() {
 	const TObjectPtr<ALevelChunk>& EndChunk = ActiveChunks.Last();
 	NextLaserStartX = CorridorEndX + EndChunk->GetChunkWidth() * 0.5f;
 	LastLaserEndX = NextLaserStartX;
+	ConsecutiveSlicesCounter = 0;
 }
 
 void AJetpackGameMode::Tick(float DeltaSeconds) {
 	Super::Tick(DeltaSeconds);
 	if (!IsValid(Player)) Player = Cast<AJetpackPlayer>(UGameplayStatics::GetPlayerCharacter(this, 0));
-	if (!IsValid(Player) || ActiveChunks.IsEmpty()) return;
+	if (!IsValid(Player) || (ActiveChunks.IsEmpty() && ActiveLasers.IsEmpty())) return;
 	
 	const FVector PlayerPosition = Player->GetActorLocation();
 	
-	if (CorridorEndX < PlayerPosition.X + ForwardGenerationDistance) SpawnNextChunk(); // Spawn new chunk
+	if (CorridorEndX < PlayerPosition.X + ForwardGenerationDistance) SpawnNextChunk();
 	
-	if (ActiveLasers.Num() < MaxLasers) {
-		float SpawnLaserP = FMath::FRandRange(0.f, 1.f);
-		float SpawnGapP = FMath::FRandRange(0.f, 1.f);
-		if (SpawnLaserP <= LaserSpawnFrequency * DeltaSeconds) {
+	while (NextLaserStartX <= PlayerPosition.X + ObstacleGenerationDistance) {
+		if (FMath::RandRange(1, 100) <= LaserSpawnProbability && ConsecutiveSlicesCounter < MaxConsecutiveSlices) {
 			SpawnLaser();
-			UE_LOG(LogTemp, Warning, TEXT("Laser Spawned! | Next Laser Start: %f | Last Laser End: %f"), NextLaserStartX, LastLaserEndX);
 		}
-		else { // TODO limit by player's speed
-			NextLaserStartX = LastLaserEndX + FMath::FRandRange(MinGap, MaxGap);
-			LastLaserEndX = NextLaserStartX;
-			UE_LOG(LogTemp, Warning, TEXT("Gap! | Next Laser Start: %f | Last Laser End: %f"), NextLaserStartX, LastLaserEndX);
+		else { 
+			NextLaserStartX += FMath::FRandRange(MinGap, MaxGap);
+			ConsecutiveSlicesCounter = 0;
 		}
 	}
 	
@@ -89,7 +92,7 @@ void AJetpackGameMode::Tick(float DeltaSeconds) {
 		ActiveChunks.RemoveAt(0);
 	}
 	
-	while (ActiveLasers.Num() > 1) {
+	while (!ActiveLasers.IsEmpty()) {
 		ALaser* OldestLaser = ActiveLasers[0].Get();
 		if (!IsValid(OldestLaser)) {
 			ActiveLasers.RemoveAt(0);
@@ -133,7 +136,7 @@ void AJetpackGameMode::SpawnLaser() {
 	
 	if (!LaserClass) return;
 	
-	float SpawnX = NextLaserStartX + HalfWidth;
+	int SpawnX = NextLaserStartX + HalfWidth;
 	const FVector SpawnLocation(SpawnX, 0, Settings.ZPosition);
 	
 	FActorSpawnParameters SpawnParams;
@@ -147,4 +150,6 @@ void AJetpackGameMode::SpawnLaser() {
 	ActiveLasers.Add(Laser);
 	LastLaserEndX = SpawnX + HalfWidth;
 	NextLaserStartX = LastLaserEndX + FMath::FRandRange(MinGap, MaxGap);
+	
+	ConsecutiveSlicesCounter++;
 }
